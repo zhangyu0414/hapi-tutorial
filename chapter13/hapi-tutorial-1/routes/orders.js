@@ -21,7 +21,7 @@ module.exports = [
           const goodsList = [];
           request.payload.goodsList.forEach((item) => {
             goodsList.push(models.order_goods.create({
-              order_id: order.dataValues.id,
+              order_id: 100000000 + order.dataValues.id,
               goods_id: item.goods_id,
               // 此处单价的数值应该从商品表中反查出写入，出于教程的精简性而省略该步骤
               single_price: 4.9,
@@ -60,21 +60,24 @@ module.exports = [
     path: `/${GROUP_NAME}/{orderId}/pay`,
     handler: async (request, reply) => {
       // 从用户表中获取 openid
-      const user = await models.users.findOne({ where: { id: request.auth.credentials.userId } });
-      const { openid } = user;
+      console.log(request.auth.credentials.userId);
+      const user = await models.users.findById(request.auth.credentials.userId);
+      const { open_id } = user;
+      // console.log(user);
       // 构造 unifiedorder 所需入参
       const unifiedorderObj = {
         appid: config.wxAppid, // 小程序id
         body: '小程序支付', // 商品简单描述
         mch_id: config.wxMchid, // 商户号
         nonce_str: Math.random().toString(36).substr(2, 15), // 随机字符串
-        notify_url: 'https://yourhost.com/orders/pay/notify', // 支付成功的回调地址
-        openid, // 用户 openid
+        notify_url: 'http://dwshopapi.bbgshop.com/mini/pay/notify/', // 支付成功的回调地址
+        openid: open_id, // 用户 openid
         out_trade_no: request.params.orderId, // 商户订单号
         spbill_create_ip: request.info.remoteAddress, // 调用支付接口的用户 ip
         total_fee: 1, // 总金额，单位为分
         trade_type: 'JSAPI', // 交易类型，默认
       };
+      console.log(unifiedorderObj);
       // 签名的数据
       const getSignData = (rawData, apiKey) => {
         let keys = Object.keys(rawData);
@@ -88,6 +91,7 @@ module.exports = [
       };
       // 将基础数据信息 sign 签名
       const sign = getSignData(unifiedorderObj, config.wxPayApiKey);
+      console.log(sign);
       // 需要被 post 的数据源
       const unifiedorderWithSign = {
         ...unifiedorderObj,
@@ -96,18 +100,25 @@ module.exports = [
       // 将需要 post 出去的订单参数，转换位 xml 格式
       const builder = new xml2js.Builder({ rootName: 'xml', headless: true });
       const unifiedorderXML = builder.buildObject(unifiedorderWithSign);
+      console.log(unifiedorderXML);
       const result = await axios({
         url: 'https://api.mch.weixin.qq.com/pay/unifiedorder',
         method: 'POST',
         data: unifiedorderXML,
         headers: { 'content-type': 'text/xml' },
       });
+      console.log('xml=>>>');
+      console.log(result);
       // result 是一个 xml 结构的 response，转换为 jsonObject，并返回前端
       xml2js.parseString(result.data, (err, parsedResult) => {
+        console.log('xml2js.parseString=>>>');
+        console.log(parsedResult);
         if (parsedResult.xml) {
           if (parsedResult.xml.return_code[0] === 'SUCCESS'
           && parsedResult.xml.result_code[0] === 'SUCCESS') {
             // 待签名的原始支付数据
+            console.log('replyData=>>>');
+            console.log(parsedResult);
             const replyData = {
               appId: parsedResult.xml.appid[0],
               timeStamp: (Date.now() / 1000).toString(),
@@ -116,6 +127,7 @@ module.exports = [
               signType: 'MD5',
             };
             replyData.paySign = getSignData(replyData, config.wxPayApiKey);
+            console.log(replyData);
             reply(replyData);
           }
         }

@@ -71,6 +71,7 @@ module.exports = [
           userId: jwtInfo.userId,
           exp: Math.floor(new Date().getTime() / 1000) + 7 * 24 * 60 * 60,
         };
+        console.log(payload);
         return JWT.sign(payload, config.jwtSecret);
       };
       reply(generateJWT({

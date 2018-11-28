@@ -21,7 +21,7 @@ module.exports = [
       validate: {
         ...jwtHeaderDefine, // 增加需要 jwt auth 认证的接口 header 校验
       },
-      auth: false
+      auth: false,
     },
   },
 ];
